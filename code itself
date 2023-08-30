@@ -1,0 +1,120 @@
+import SwiftUI
+
+struct Reminder: Identifiable {
+    let id = UUID()
+    var title: String
+    var notes: String
+}
+
+class ReminderListViewModel: ObservableObject {
+    @Published var reminders: [Reminder] = []
+    
+    func addReminder(title: String, notes: String) {
+        let newReminder = Reminder(title: title, notes: notes)
+        reminders.append(newReminder)
+    }
+    
+    func deleteReminder(at index: Int) {
+        reminders.remove(at: index)
+    }
+}
+
+struct ContentView: View {
+    @StateObject private var viewModel = ReminderListViewModel()
+    @State private var newReminderTitle = ""
+    @State private var newReminderNotes = ""
+    
+    var body: some View {
+        ZStack {
+            Color(UIColor.systemTeal).edgesIgnoringSafeArea(.all)
+            
+            VStack {
+                List {
+                    ForEach(viewModel.reminders.indices, id: \.self) { index in
+                        ReminderRow(reminder: $viewModel.reminders[index])
+                            .environmentObject(viewModel)
+                    }
+                }
+                
+                HStack {
+                    TextField("Reminder Title", text: $newReminderTitle)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                    
+                    TextField("Notes", text: $newReminderNotes)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                    
+                    Button("Add") {
+                        addReminder()
+                    }
+                    .padding()
+                }
+                
+                Spacer()
+            }
+        }
+        .navigationBarTitle("Reminder List", displayMode: .inline)
+    }
+    
+    private func addReminder() {
+        viewModel.addReminder(title: newReminderTitle, notes: newReminderNotes)
+        newReminderTitle = ""
+        newReminderNotes = ""
+    }
+}
+
+struct ReminderRow: View {
+    @Binding var reminder: Reminder
+    @State private var showDeleteConfirmation = false
+    
+    @EnvironmentObject var viewModel: ReminderListViewModel
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(reminder.title)
+                    .font(.headline)
+                Text(reminder.notes)
+                    .font(.subheadline)
+            }
+            Spacer()
+            Button("Delete") {
+                showDeleteConfirmation = true
+            }
+            .alert(isPresented: $showDeleteConfirmation) {
+                Alert(
+                    title: Text("Delete Reminder"),
+                    message: Text("Are you sure you want to delete this reminder?"),
+                    primaryButton: .destructive(Text("Yes")) {
+                        deleteReminder()
+                    },
+                    secondaryButton: .cancel(Text("No"))
+                )
+            }
+            .padding()
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(radius: 4)
+    }
+    
+    private func deleteReminder() {
+        if let index = viewModel.reminders.firstIndex(where: { $0.id == reminder.id }) {
+            viewModel.deleteReminder(at: index)
+        }
+    }
+}
+
+@main
+struct ReminderApp: App {
+    var body: some Scene {
+        WindowGroup {
+            NavigationView {
+                ContentView()
+                    .environmentObject(ReminderListViewModel())
+            }
+        }
+    }
+}
